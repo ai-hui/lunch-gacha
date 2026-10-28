@@ -746,13 +746,28 @@ function isDupDay(i){
   for(var k=0;k<i;k++){ if(S.results[k] && S.results[k].name === r.name) return true; }
   return false;
 }
-/* 第 i 空位预告：剩余唯一店数 < 剩余天数 → 一定会重复（M2） */
+/* 第 i 空位预告：会不会是「加餐日」（必然重复的那一段）（M2）
+   规则：候选池 S.pool 每次抽签移除一家，前 D 次抽签必然给出 D 家**不同**的店（D = 可用店数），
+   第 D+1 次起必然重复。所以「注定重复」的格子是**最后 F 个**（F = 天数 - D）。
+   若已抽出的结果里已经出现过重复（用户中途改过配置等），以实际首次重复的位置为准。
+   注意：S.pool 在第一次抽签前是空的（pickName 里才初始化），
+   所以 D 必须补上「还没进 pool 的 options」，否则开局永远误报「会重复」。 */
 function willDupAt(i){
-  var n = dayCount(), names = {}, cnt = 0;
-  function add(nm){ if(typeof nm === "string" && nm && !names[nm]){ names[nm] = 1; cnt++; } }
-  for(var k=0;k<i && k<S.results.length;k++){ if(S.results[k]) add(S.results[k].name); }
-  S.pool.forEach(add);
-  return cnt < (n - i);
+  var n = dayCount();
+  /* 已抽结果里首次出现重复的位置 */
+  var seen = {}, firstDup = -1;
+  for(var k=0;k<S.results.length;k++){
+    var r = S.results[k]; if(!r) continue;
+    if(seen[r.name] && firstDup < 0) firstDup = k;
+    seen[r.name] = 1;
+  }
+  if(firstDup >= 0) return i >= firstDup;
+  /* 可用店数：options 与 pool 的并集（pool 通常是 options 的子集） */
+  var names = {};
+  S.options.forEach(function(nm){ names[nm] = 1; });
+  S.pool.forEach(function(nm){ names[nm] = 1; });
+  var D = Object.keys(names).length;
+  return i >= D;   /* 格子序号 ≥ D 的都在「注定重复」那一段里 */
 }
 
 /* ============ 工具 ============ */

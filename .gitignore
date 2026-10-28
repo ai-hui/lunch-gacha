@@ -5,6 +5,7 @@
 _verify.py
 _diag*.py
 _verify*.py
+_shot*.py
 
 # 系统文件
 .DS_Store
