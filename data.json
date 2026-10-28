@@ -1,0 +1,14 @@
+{
+  "_comment": "今天吃什么 · 数据文件。改完 options（店名）/ history（历史）后，用页面上的「📂 导入 data.json」读回来即可生效。用 http 服务器打开本页时会自动加载这个文件。",
+  "version": 1,
+  "updatedAt": 0,
+  "options": ["沙县", "张腾记", "汉堡", "汉泰丰", "麻辣烫"],
+  "weekType": "big",
+  "animPref": "random",
+  "animLog": {},
+  "drawSeq": 0,
+  "weekStart": "",
+  "results": [],
+  "pool": [],
+  "history": []
+}

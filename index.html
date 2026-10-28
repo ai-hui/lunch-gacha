@@ -1,0 +1,1638 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>今天吃什么 · 抽卡召唤阵</title>
+<style>
+:root{
+  --bg:#05060f;
+  --panel:rgba(18,20,38,.72);
+  --line:rgba(124,77,255,.28);
+  --txt:#eaf0ff;
+  --dim:#8b93bd;
+  --pink:#ff2e88;
+  --cyan:#00e5ff;
+  --gold:#ffd54f;
+  --purple:#7c4dff;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  background:var(--bg);
+  color:var(--txt);
+  font-family:"Segoe UI","PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  overflow-x:hidden;
+  min-height:100%;
+  position:relative;
+}
+/* ---------- 背景 ---------- */
+.bg-layer{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
+.bg-grid{
+  position:absolute;inset:-50%;
+  background-image:linear-gradient(rgba(124,77,255,.10) 1px,transparent 1px),
+                   linear-gradient(90deg,rgba(0,229,255,.08) 1px,transparent 1px);
+  background-size:60px 60px;
+  transform:perspective(600px) rotateX(62deg) translateY(-10%);
+  animation:gridmove 14s linear infinite;
+  opacity:.55;
+}
+@keyframes gridmove{to{background-position:0 60px,60px 0}}
+/* 用静态 radial-gradient 表现柔和光晕，避免每帧重算大半径 blur */
+.orb-bg{position:absolute;border-radius:50%;opacity:.5;animation:float 12s ease-in-out infinite;
+  background:radial-gradient(circle closest-side,var(--c1) 0%,var(--c2) 42%,rgba(0,0,0,0) 72%)}
+.orb-bg.a{width:460px;height:460px;--c1:rgba(255,46,136,.60);--c2:rgba(255,46,136,.22);top:-120px;left:-100px}
+.orb-bg.b{width:520px;height:520px;--c1:rgba(124,77,255,.60);--c2:rgba(124,77,255,.22);bottom:-180px;right:-120px;animation-delay:-4s}
+.orb-bg.c{width:360px;height:360px;--c1:rgba(0,229,255,.55);--c2:rgba(0,229,255,.20);top:40%;left:55%;animation-delay:-8s}
+@keyframes float{0%,100%{transform:translate(0,0)}50%{transform:translate(40px,-50px)}}
+
+#fx{position:fixed;inset:0;z-index:60;pointer-events:none}
+
+/* ---------- 布局 ---------- */
+#app{position:relative;z-index:2;max-width:1080px;margin:0 auto;padding:26px 18px 70px}
+header{text-align:center;margin-bottom:22px}
+h1{
+  font-size:clamp(30px,6vw,54px);font-weight:900;letter-spacing:2px;
+  background:linear-gradient(92deg,#00e5ff,#7c4dff 30%,#ff2e88 58%,#ffd54f 82%,#00e5ff);
+  background-size:300% 100%;
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+  filter:drop-shadow(0 0 20px rgba(124,77,255,.55));
+  animation:slidehue 7s linear infinite;
+}
+@keyframes slidehue{to{background-position:300% 0}}
+.sub{margin-top:8px;color:var(--dim);font-size:14px;letter-spacing:3px}
+.sub b{color:var(--gold)}
+
+.panel{
+  background:var(--panel);border:1px solid var(--line);border-radius:16px;
+  padding:16px 18px;margin-bottom:20px;
+  backdrop-filter:blur(10px);
+  box-shadow:0 8px 40px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.05);
+}
+.panel-head{display:flex;align-items:center;justify-content:space-between;font-weight:700;font-size:15px;letter-spacing:1px}
+.panel-head .tog{background:none;border:1px solid var(--line);color:var(--dim);border-radius:8px;padding:4px 12px;cursor:pointer;font-size:12px}
+.panel-head .tog:hover{color:var(--cyan);border-color:var(--cyan)}
+.cfg-body{margin-top:14px;display:block}
+.cfg-body.collapsed{display:none}
+
+.chips{display:flex;flex-wrap:wrap;gap:9px}
+.chip{
+  display:inline-flex;align-items:center;gap:7px;
+  background:linear-gradient(135deg,rgba(124,77,255,.22),rgba(0,229,255,.12));
+  border:1px solid rgba(124,77,255,.45);
+  border-radius:999px;padding:7px 13px;font-size:14px;
+  animation:pop .25s ease;
+}
+@keyframes pop{from{transform:scale(.7);opacity:0}to{transform:scale(1);opacity:1}}
+.chip .x{cursor:pointer;color:var(--dim);font-weight:700;padding:0 2px;
+  background:none;border:none;font:inherit;font-size:14px;line-height:1}
+.chip .x:hover{color:var(--pink)}
+.chip .x:disabled{opacity:.4;cursor:not-allowed}
+.add-row{display:flex;gap:8px;margin-top:13px;flex-wrap:wrap}
+input[type=text]{
+  flex:1;min-width:180px;background:rgba(0,0,0,.35);border:1px solid var(--line);
+  color:var(--txt);border-radius:10px;padding:9px 13px;font-size:14px;outline:none;
+}
+input[type=text]:focus{border-color:var(--cyan);box-shadow:0 0 0 3px rgba(0,229,255,.12)}
+.row{display:flex;align-items:center;gap:10px;margin-top:14px;flex-wrap:wrap;font-size:13px;color:var(--dim)}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.seg button{background:none;border:none;color:var(--dim);padding:8px 16px;cursor:pointer;font-size:13px;transition:.2s}
+.seg button.on{background:linear-gradient(135deg,var(--purple),var(--pink));color:#fff;font-weight:700}
+.seg button:disabled{opacity:.4;cursor:not-allowed}
+.tip{margin-top:11px;font-size:12px;color:var(--dim);line-height:1.7}
+.tip code{color:var(--gold);background:rgba(255,213,79,.1);padding:1px 6px;border-radius:4px}
+
+/* ---------- 舞台 ---------- */
+.stage{
+  position:relative;height:290px;border-radius:20px;overflow:hidden;
+  border:1px solid var(--line);
+  background:radial-gradient(circle at 50% 45%,rgba(124,77,255,.18),rgba(5,6,15,.9) 65%);
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 0 60px rgba(124,77,255,.18) inset;
+}
+.stage::after{
+  content:"";position:absolute;inset:0;pointer-events:none;
+  background:repeating-linear-gradient(0deg,rgba(0,0,0,.22) 0 1px,transparent 1px 3px);
+  opacity:.5;
+}
+.speedlines{
+  position:absolute;width:250%;height:250%;left:-75%;top:-75%;opacity:0;
+  background:repeating-conic-gradient(from 0deg,rgba(255,255,255,.35) 0deg 1.2deg,transparent 1.2deg 8deg);
+  animation:spin 9s linear infinite;
+}
+.speedlines.on{opacity:.55;animation-duration:1.1s}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.ring{position:absolute;width:300px;height:300px;opacity:0;transition:opacity .3s}
+.ring.on{opacity:1}
+.ring i{position:absolute;inset:0;border-radius:50%;border:2px solid transparent}
+.ring i:nth-child(1){border-top-color:var(--cyan);border-bottom-color:var(--pink);animation:spin 2.4s linear infinite}
+.ring i:nth-child(2){inset:26px;border-left-color:var(--gold);border-right-color:var(--purple);animation:spin 1.6s linear infinite reverse}
+.ring i:nth-child(3){
+  inset:52px;background:repeating-conic-gradient(from 0deg,rgba(255,255,255,.10) 0 6deg,transparent 6deg 18deg);
+  animation:spin 6s linear infinite;
+}
+.core{
+  position:absolute;width:20px;height:20px;border-radius:50%;
+  background:radial-gradient(circle,#fff,var(--gold) 40%,transparent 70%);
+  box-shadow:0 0 60px 24px rgba(255,213,79,.55);
+  opacity:0;transition:.3s;
+}
+.core.on{opacity:1;animation:pulse .7s ease-in-out infinite}
+@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.5)}}
+
+.reel{position:relative;z-index:3;text-align:center;width:100%}
+.reel-item{transition:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 20px}
+.reel .prev,.reel .next{font-size:24px;color:rgba(234,240,255,.22);filter:blur(2px);height:34px;line-height:34px}
+.reel .cur{
+  font-size:clamp(34px,8vw,64px);font-weight:900;height:88px;line-height:88px;
+  background:linear-gradient(92deg,#fff,#00e5ff 40%,#ff2e88);
+  background-size:200% 100%;
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+  filter:drop-shadow(0 0 22px rgba(0,229,255,.6));
+  animation:slidehue 2s linear infinite;
+}
+.reel.spinning .cur{filter:drop-shadow(0 0 26px rgba(255,46,136,.8)) blur(.4px)}
+.stage-hint{position:absolute;bottom:16px;left:0;right:0;text-align:center;color:var(--dim);font-size:13px;letter-spacing:2px;z-index:4}
+
+/* ---------- 按钮 ---------- */
+.actions{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin:22px 0}
+.btn{
+  border:none;border-radius:12px;padding:13px 26px;font-size:15px;font-weight:800;
+  cursor:pointer;color:#fff;letter-spacing:1px;position:relative;overflow:hidden;
+  background:linear-gradient(135deg,#3a3f6b,#232744);
+  box-shadow:0 6px 22px rgba(0,0,0,.45);transition:transform .12s,box-shadow .2s;
+}
+.btn:hover{transform:translateY(-2px)}
+.btn:active{transform:translateY(1px) scale(.98)}
+.btn:disabled{opacity:.4;cursor:not-allowed;transform:none}
+.btn.primary{
+  background:linear-gradient(135deg,#ff2e88,#7c4dff 55%,#00e5ff);
+  background-size:200% 100%;animation:slidehue 3s linear infinite;
+  box-shadow:0 8px 30px rgba(255,46,136,.4);
+}
+.btn.ghost{background:transparent;border:1px solid var(--line);color:var(--dim)}
+.btn.ghost:hover{color:var(--txt);border-color:var(--cyan)}
+
+/* ---------- 排期 ---------- */
+.sched-title{text-align:center;color:var(--dim);font-size:13px;letter-spacing:4px;margin:8px 0 14px}
+.days{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px}
+.day{
+  border:1px solid var(--line);border-radius:14px;padding:14px 12px;text-align:center;
+  background:linear-gradient(180deg,rgba(124,77,255,.10),rgba(0,0,0,.25));
+  position:relative;overflow:hidden;min-height:104px;
+  display:flex;flex-direction:column;justify-content:center;gap:6px;
+}
+.day .dname{font-size:12px;color:var(--dim);letter-spacing:2px}
+.day .dish{font-size:19px;font-weight:900;letter-spacing:1px}
+.day .rar{font-size:11px;font-weight:800;letter-spacing:2px;opacity:.9}
+.day.tbd .dish{color:rgba(234,240,255,.2);font-size:32px}
+.day.done{animation:cardin .5s cubic-bezier(.2,1.4,.4,1)}
+@keyframes cardin{from{transform:scale(.6) rotate(-8deg);opacity:0}to{transform:none;opacity:1}}
+.day .tag{position:absolute;top:6px;right:6px;font-size:10px;padding:2px 6px;border-radius:6px;background:rgba(255,46,136,.2);color:var(--pink);border:1px solid rgba(255,46,136,.4)}
+.day.r-R{border-color:rgba(79,195,247,.5);box-shadow:0 0 22px rgba(79,195,247,.15) inset}
+.day.r-SR{border-color:rgba(179,136,255,.6);box-shadow:0 0 26px rgba(179,136,255,.2) inset}
+.day.r-SSR{border-color:rgba(255,213,79,.8);box-shadow:0 0 34px rgba(255,213,79,.28) inset}
+.day.r-UR{border-color:transparent;box-shadow:0 0 40px rgba(255,255,255,.25) inset;animation:urbd 2s linear infinite}
+@keyframes urbd{
+  0%,100%{box-shadow:0 0 30px rgba(255,46,136,.3) inset,0 0 0 1px rgba(255,46,136,.8)}
+  33%{box-shadow:0 0 30px rgba(0,229,255,.3) inset,0 0 0 1px rgba(0,229,255,.8)}
+  66%{box-shadow:0 0 30px rgba(255,213,79,.3) inset,0 0 0 1px rgba(255,213,79,.8)}
+}
+.dish.c-R{color:#4fc3f7}.dish.c-SR{color:#b388ff}
+.dish.c-SSR{color:#ffd54f;text-shadow:0 0 18px rgba(255,213,79,.6)}
+.dish.c-UR{
+  background:linear-gradient(92deg,#ff2e88,#ffd54f,#00e5ff,#7c4dff);
+  background-size:300% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;
+  animation:slidehue 2s linear infinite;
+}
+/* ---------- CSGO 开箱 ---------- */
+.csgo{position:absolute;inset:0;display:none;overflow:hidden;z-index:6}
+.csgo.on{display:block}
+.csgo-mask{position:absolute;inset:0;background:linear-gradient(180deg,rgba(5,6,15,.94),rgba(12,10,26,.97))}
+.csgo-mark{
+  position:absolute;left:50%;top:0;bottom:0;width:132px;margin-left:-66px;
+  border-left:2px solid rgba(255,213,79,.95);border-right:2px solid rgba(255,213,79,.95);
+  box-shadow:0 0 34px rgba(255,213,79,.35),inset 0 0 40px rgba(255,213,79,.10);
+  z-index:4;pointer-events:none;
+}
+.csgo-mark::before,.csgo-mark::after{
+  content:"";position:absolute;left:50%;width:12px;height:12px;margin-left:-6px;
+  background:var(--gold);clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%);
+}
+.csgo-mark::before{top:-6px}
+.csgo-mark::after{bottom:-6px}
+.csgo-view{position:absolute;inset:0;overflow:hidden}
+.csgo-track{
+  position:absolute;top:50%;left:0;display:flex;gap:9px;padding-left:0;
+  transform:translateY(-50%);
+}
+.cg-card{
+  flex:0 0 auto;width:122px;height:156px;border-radius:9px;position:relative;
+  border:2px solid var(--c2,#4b69ff);
+  background:linear-gradient(180deg,var(--c1,rgba(75,105,255,.5)) 0%,rgba(10,12,26,.92) 76%);
+  display:flex;align-items:flex-end;justify-content:center;padding:9px 6px;
+  box-shadow:0 0 18px rgba(0,0,0,.6),inset 0 0 26px var(--c1,rgba(75,105,255,.35));
+  overflow:hidden;
+}
+.cg-card .cg-n{
+  font-size:15px;font-weight:900;color:#fff;letter-spacing:1px;text-align:center;
+  text-shadow:0 2px 8px rgba(0,0,0,.8);width:100%;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.cg-card .cg-r{
+  position:absolute;top:6px;left:50%;transform:translateX(-50%);
+  font-size:9px;font-weight:800;letter-spacing:2px;color:var(--c2,#4b69ff);opacity:.95;
+}
+.cg-card.win{
+  animation:cgwin .7s cubic-bezier(.2,1.6,.35,1) forwards;z-index:5;
+}
+@keyframes cgwin{
+  0%{transform:scale(1)}
+  55%{transform:scale(1.22)}
+  100%{transform:scale(1.14)}
+}
+.cg-card.win::after{
+  content:"";position:absolute;inset:-40%;
+  background:conic-gradient(from 0deg,transparent 0 8deg,rgba(255,255,255,.22) 8deg 12deg,transparent 12deg 26deg);
+  animation:spin 3.5s linear infinite;pointer-events:none;
+}
+.csgo-tip{
+  position:absolute;bottom:14px;left:0;right:0;text-align:center;z-index:7;
+  font-size:12.5px;letter-spacing:3px;color:var(--gold);text-shadow:0 0 14px rgba(255,213,79,.5);
+}
+.csgo-hint{position:absolute;top:12px;left:0;right:0;text-align:center;z-index:7;font-size:11px;letter-spacing:3px;color:var(--dim)}
+.csgo-fade{position:absolute;top:0;bottom:0;width:110px;z-index:3;pointer-events:none}
+.csgo-fade.l{left:0;background:linear-gradient(90deg,rgba(5,6,15,.95),transparent)}
+.csgo-fade.r{right:0;background:linear-gradient(270deg,rgba(5,6,15,.95),transparent)}
+
+/* ---------- 统计 / 历史 ---------- */
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:16px}
+.kpi{background:rgba(0,0,0,.28);border:1px solid var(--line);border-radius:12px;padding:12px;text-align:center}
+.kpi .v{font-size:24px;font-weight:900;color:var(--gold);text-shadow:0 0 16px rgba(255,213,79,.35)}
+.kpi .l{font-size:11px;color:var(--dim);letter-spacing:2px;margin-top:4px}
+.kpi .v.cy{color:var(--cyan);text-shadow:0 0 16px rgba(0,229,255,.35)}
+.kpi .v.pk{color:var(--pink);text-shadow:0 0 16px rgba(255,46,136,.35)}
+
+.bars{display:flex;flex-direction:column;gap:9px;margin-bottom:18px}
+.bar{display:grid;grid-template-columns:88px 1fr 62px;align-items:center;gap:10px;font-size:13px}
+.bar .bn{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bar .bt{height:14px;border-radius:7px;background:rgba(255,255,255,.06);overflow:hidden;position:relative}
+.bar .bf{height:100%;border-radius:7px;background:linear-gradient(90deg,var(--cyan),var(--purple),var(--pink));background-size:200% 100%;animation:slidehue 4s linear infinite;transition:width .6s cubic-bezier(.2,1,.3,1)}
+.bar .bv{text-align:right;color:var(--dim);font-size:12px}
+.bar.stale .bn{color:var(--gold);font-weight:800}
+.bar.stale .bv{color:var(--gold)}
+
+.his-list{display:flex;flex-direction:column;gap:7px;max-height:250px;overflow-y:auto;margin-bottom:14px;padding-right:4px}
+.his-list::-webkit-scrollbar{width:6px}
+.his-list::-webkit-scrollbar-thumb{background:rgba(124,77,255,.5);border-radius:3px}
+.hrow{
+  display:flex;align-items:center;gap:10px;font-size:12.5px;
+  background:rgba(0,0,0,.24);border:1px solid var(--line);border-radius:10px;padding:8px 12px;
+}
+.hrow .hw{color:var(--cyan);font-weight:700;white-space:nowrap;min-width:132px}
+.hrow .ht{font-size:10px;padding:1px 7px;border-radius:5px;border:1px solid var(--line);color:var(--dim)}
+.hrow .hl{flex:1;color:var(--txt);opacity:.9;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hrow .hp{color:var(--dim);font-size:11px;white-space:nowrap}
+.empty{color:var(--dim);font-size:13px;text-align:center;padding:18px 0}
+
+.copybar{text-align:center;margin-top:16px}
+.copybar textarea{width:100%;margin-top:10px;background:rgba(0,0,0,.35);border:1px solid var(--line);border-radius:10px;color:var(--dim);padding:10px;font-size:13px;min-height:64px;resize:vertical}
+
+/* ---------- 揭示卡 ---------- */
+#reveal{position:fixed;inset:0;z-index:70;display:none;align-items:center;justify-content:center;perspective:1200px}
+#reveal.on{display:flex}
+.rev-mask{position:absolute;inset:0;background:radial-gradient(circle,rgba(5,6,15,.82),rgba(5,6,15,.96));backdrop-filter:blur(3px)}
+.beams{position:absolute;width:200%;height:200%;left:-50%;top:-50%;
+  background:conic-gradient(from 0deg,transparent 0 6deg,rgba(255,255,255,.16) 6deg 9deg,transparent 9deg 24deg);
+  animation:spin 5s linear infinite;opacity:.9}
+.beams.b2{animation-duration:8s;animation-direction:reverse;opacity:.5}
+.shock{position:absolute;width:200px;height:200px;border-radius:50%;border:4px solid rgba(255,255,255,.9);opacity:0}
+.shock.go{animation:shock .8s ease-out}
+@keyframes shock{0%{transform:scale(.2);opacity:1}100%{transform:scale(9);opacity:0}}
+.rcard{
+  position:relative;width:min(86vw,380px);padding:34px 24px 30px;border-radius:22px;text-align:center;
+  background:linear-gradient(160deg,rgba(30,24,60,.96),rgba(10,10,26,.98));
+  border:2px solid rgba(255,255,255,.25);
+  box-shadow:0 30px 90px rgba(0,0,0,.7);
+  transform-style:preserve-3d;
+  animation:rcardin .8s cubic-bezier(.16,1.5,.3,1);
+}
+@keyframes rcardin{
+  0%{transform:rotateY(90deg) scale(.5);opacity:0}
+  60%{transform:rotateY(-12deg) scale(1.06)}
+  100%{transform:none;opacity:1}
+}
+.rcard::before{
+  content:"";position:absolute;inset:-2px;border-radius:24px;padding:2px;
+  background:linear-gradient(120deg,#ff2e88,#ffd54f,#00e5ff,#7c4dff,#ff2e88);
+  background-size:300% 100%;animation:slidehue 2.4s linear infinite;
+  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
+  -webkit-mask-composite:xor;mask-composite:exclude;opacity:.9;
+}
+.rcard.r-R{box-shadow:0 0 60px rgba(79,195,247,.45)}
+.rcard.r-SR{box-shadow:0 0 70px rgba(179,136,255,.55)}
+.rcard.r-SSR{box-shadow:0 0 90px rgba(255,213,79,.65)}
+.rcard.r-UR{box-shadow:0 0 110px rgba(255,255,255,.6)}
+.rbadge{
+  display:inline-block;font-size:26px;font-weight:900;letter-spacing:6px;padding:4px 18px;border-radius:10px;
+  margin-bottom:14px;border:2px solid currentColor;
+}
+.rbadge.c-R{color:#4fc3f7}.rbadge.c-SR{color:#b388ff}
+.rbadge.c-SSR{color:#ffd54f;background:rgba(255,213,79,.12)}
+.rbadge.c-UR{
+  background:linear-gradient(92deg,#ff2e88,#ffd54f,#00e5ff);
+  background-size:300% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;
+  -webkit-text-stroke:1.5px #fff;animation:slidehue 1.6s linear infinite;
+}
+.rdish{font-size:clamp(34px,9vw,52px);font-weight:900;letter-spacing:4px;margin:6px 0 4px}
+.rsub{color:var(--dim);font-size:14px;letter-spacing:3px;margin-top:8px}
+.rquote{margin-top:14px;font-size:13px;color:var(--gold);letter-spacing:1px;min-height:19px}
+.rshine{position:absolute;inset:0;overflow:hidden;border-radius:22px;pointer-events:none}
+.rshine::before{
+  content:"";position:absolute;top:-60%;left:-60%;width:60%;height:220%;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.35),transparent);
+  transform:rotate(20deg);animation:sweep 1.6s ease-in-out .3s infinite;
+}
+@keyframes sweep{0%{left:-60%}100%{left:130%}}
+#flash{position:fixed;inset:0;background:#fff;opacity:0;z-index:80;pointer-events:none}
+#flash.go{animation:fl .5s ease-out}
+@keyframes fl{0%{opacity:.95}100%{opacity:0}}
+body.shake{animation:shake .45s ease-in-out}
+@keyframes shake{
+  0%,100%{transform:translate(0,0)}
+  20%{transform:translate(-7px,4px)}40%{transform:translate(6px,-5px)}
+  60%{transform:translate(-5px,-3px)}80%{transform:translate(4px,5px)}
+}
+/* ---------- 页面内提示条 ---------- */
+#toast{
+  position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(12px);
+  z-index:90;max-width:min(92vw,600px);padding:11px 18px;border-radius:12px;
+  background:rgba(16,18,36,.96);border:1px solid var(--line);color:var(--txt);
+  font-size:13px;line-height:1.6;box-shadow:0 10px 34px rgba(0,0,0,.55);
+  opacity:0;pointer-events:none;transition:opacity .25s,transform .25s;
+}
+#toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+#toast.err{border-color:rgba(255,46,136,.65);color:#ffd9e8}
+#toast.ok{border-color:rgba(0,229,255,.5)}
+
+@media(max-width:640px){
+  .stage{height:230px}
+  .ring{width:230px;height:230px}
+}
+/* ---------- 降低动效偏好 ---------- */
+@media (prefers-reduced-motion: reduce){
+  .bg-grid,.orb-bg,.speedlines,.ring i,.core.on,.beams,.shock.go,.rshine::before,
+  .rcard::before,.rcard,.bar .bf,.dish.c-UR,.rbadge.c-UR,.day.r-UR,.cg-card.win,
+  .cg-card.win::after,h1,.btn.primary,.reel .cur{animation:none!important}
+  *{transition-duration:.01ms!important}
+}
+</style>
+</head>
+<body>
+
+<div class="bg-layer">
+  <div class="bg-grid"></div>
+  <div class="orb-bg a"></div><div class="orb-bg b"></div><div class="orb-bg c"></div>
+</div>
+<canvas id="fx"></canvas>
+
+<div id="app">
+  <header>
+    <h1>今天吃什么 · 抽卡召唤阵</h1>
+    <div class="sub">一周不重样 &nbsp;·&nbsp; <b>R / SR / SSR / UR</b> 稀有度判定</div>
+  </header>
+
+  <section class="panel">
+    <div class="panel-head">
+      <span>⚙ 食堂配置</span>
+      <button class="tog" id="togCfg">收起</button>
+    </div>
+    <div class="cfg-body" id="cfgBody">
+      <div class="chips" id="chips"></div>
+      <div class="add-row">
+        <input type="text" id="newOpt" placeholder="输入新店名，回车添加" maxlength="16">
+        <button class="btn" id="addOpt">+ 添加</button>
+      </div>
+      <div class="row">
+        <span>周类型</span>
+        <span class="seg">
+          <button data-week="big">大周 · 上5天</button>
+          <button data-week="small">小周 · 上6天</button>
+        </span>
+      </div>
+      <div class="row">
+        <span>动画</span>
+        <span class="seg">
+          <button data-anim="random">🎲 随机（越久没出现越容易出）</button>
+          <button data-anim="gacha">⭕ 魔法阵召唤</button>
+          <button data-anim="csgo">📦 CSGO 开箱</button>
+        </span>
+      </div>
+      <div class="row" id="animStat" style="font-size:12px"></div>
+      <div class="row">
+        <span>数据</span>
+        <button class="btn ghost" id="expJson" style="padding:8px 14px;font-size:12px">💾 导出 data.json</button>
+        <button class="btn ghost" id="impBtn" style="padding:8px 14px;font-size:12px">📂 导入 data.json</button>
+        <button class="btn ghost" id="restoreBtn" style="padding:8px 14px;font-size:12px" disabled>↩️ 恢复备份</button>
+        <input type="file" id="impJson" accept=".json" style="display:none">
+      </div>
+      <div class="tip">
+        大周抽 <code>5</code> 天；小周 <code>6</code> 天。<b style="color:var(--gold)">店数 ≥ 天数时全程不重复</b>；店数不够时才会重复，那一天会标 <code>加餐日</code>。<br>
+        <span id="storeMode"></span>
+      </div>
+    </div>
+  </section>
+
+  <section class="stage" id="stage">
+    <div class="csgo" id="csgo">
+      <div class="csgo-mask"></div>
+      <div class="csgo-view">
+        <div class="csgo-track" id="csgoTrack"></div>
+      </div>
+      <div class="csgo-fade l"></div><div class="csgo-fade r"></div>
+      <div class="csgo-mark"></div>
+      <div class="csgo-hint">C A S E &nbsp; O P E N I N G</div>
+      <div class="csgo-tip" id="csgoTip">正在开箱…</div>
+    </div>
+    <div class="speedlines" id="speedlines"></div>
+    <div class="ring" id="ring"><i></i><i></i><i></i></div>
+    <div class="core" id="core"></div>
+    <div class="reel" id="reel">
+      <div class="reel-item prev" id="rPrev"></div>
+      <div class="reel-item cur" id="rCur">准备召唤…</div>
+      <div class="reel-item next" id="rNext"></div>
+    </div>
+    <div class="stage-hint" id="stageHint">点击「抽下一天」开始召唤</div>
+  </section>
+
+  <div class="actions">
+    <button class="btn primary" id="drawOne">🎰 抽下一天</button>
+    <button class="btn" id="drawAll">⚡ 一键抽完整周</button>
+    <button class="btn ghost" id="resetWeek">🔄 重置本周</button>
+  </div>
+
+  <div class="sched-title">— 本 周 菜 单 —</div>
+  <div class="days" id="days"></div>
+  <div class="copybar" id="copybar" style="display:none">
+    <button class="btn ghost" id="copyBtn">📋 复制本周菜单</button>
+    <textarea id="copyTxt" readonly></textarea>
+  </div>
+
+  <section class="panel" style="margin-top:22px">
+    <div class="panel-head">
+      <span>🧠 饮食记忆 · 历史与统计</span>
+      <button class="tog" id="togHis">收起</button>
+    </div>
+    <div class="cfg-body" id="hisBody">
+      <div class="kpis" id="kpis"></div>
+      <div class="bars" id="bars"></div>
+      <div class="his-list" id="hisList"></div>
+      <div class="add-row">
+        <button class="btn ghost" id="expHis">📄 导出全部历史</button>
+        <button class="btn ghost" id="arcBtn">📌 归档本周菜单</button>
+        <button class="btn ghost" id="clrHis">🗑 清空历史</button>
+      </div>
+      <div class="tip">
+        跨周自动归档：过了周一再打开，上周菜单自动进历史、本周重新开始。<br>
+        抽签时会告诉你「距上次吃 <code>X</code> 天」，并按<b style="color:var(--gold)">最久没吃的优先</b>发牌
+        （权重 = 1 + 距上次天数，最多 61 天；从没吃过的按 61 天算），避免老是抽到同一家。
+      </div>
+    </div>
+  </section>
+</div>
+
+<div id="reveal" role="dialog" aria-modal="true" aria-label="抽签结果">
+  <div class="rev-mask"></div>
+  <div class="beams" id="beams1"></div>
+  <div class="beams b2" id="beams2"></div>
+  <div class="shock" id="shock"></div>
+  <div class="rcard" id="rcard">
+    <div class="rshine"></div>
+    <div class="rbadge" id="rbadge">SSR</div>
+    <div class="rdish" id="rdish">汉堡</div>
+    <div class="rsub" id="rsub" aria-live="polite">周三 · 午餐</div>
+    <div class="rquote" id="rquote"></div>
+  </div>
+</div>
+<div id="flash"></div>
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function(){
+"use strict";
+
+/* ============ 状态 ============ */
+var KEY = "lunch_gacha_v1";
+var DAY_LABEL = ["周一","周二","周三","周四","周五","周六"];
+var EMOJI = ["🍜","🥘","🍔","🍱","🍲","🍗","🍚","🌮","🍝","🥗","🍛","🥪","🍢","🍕","🥡"];
+/* 只保留「通用」的映射；品牌名不写死，按 options 顺序取 EMOJI（O4） */
+var EMOJI_MAP = { "沙县":"🍜", "汉堡":"🍔", "麻辣烫":"🍲" };
+var RAR = [
+  {k:"R",   w:52, qs:["稳，管饱。","朴实无华的一餐。","经典永不过时。"]},
+  {k:"SR",  w:30, qs:["有点东西！","今天运气不错哦。","这顿值了。"]},
+  {k:"SSR", w:15, qs:["金光炸裂！这顿赢了！","欧皇附体，今日封神！","闪到隔壁桌都馋了！"]},
+  {k:"UR",  w:3,  qs:[" rainbow 级美味降临！！","全场最佳，今天你是天选之子！","UR！这周的高光时刻！"]}
+];
+var RAR_COLOR = {R:"#4fc3f7", SR:"#b388ff", SSR:"#ffd54f", UR:"#ffffff"};
+
+var def = {
+  options:["沙县","张腾记","汉堡","汉泰丰","麻辣烫"],
+  weekType:"big", animPref:"random",
+  results:[], pool:[], weekStart:"", history:[], animLog:{}, drawSeq:0, updatedAt:0, dataVersion:null
+};
+var S;
+try{ S = Object.assign({}, def, JSON.parse(localStorage.getItem(KEY)||"{}")); }catch(e){ S = Object.assign({}, def); }
+if(!Array.isArray(S.options) || !S.options.length) S.options = def.options.slice();
+if(S.weekType!=="big" && S.weekType!=="small") S.weekType = "big";
+if(!Array.isArray(S.results)) S.results = [];
+if(!Array.isArray(S.pool)) S.pool = [];
+if(!Array.isArray(S.history)) S.history = [];
+if(!S.animLog || typeof S.animLog !== "object") S.animLog = {};
+if(S.animPref !== "random" && S.animPref !== "gacha" && S.animPref !== "csgo") S.animPref = "random";
+/* dataVersion = 「本地状态是基于哪个版本的 data.json」，与 updatedAt（本地时间戳）是两回事 */
+if(typeof S.dataVersion !== "number" || !isFinite(S.dataVersion)) S.dataVersion = null;
+
+/* 稀有度白名单：rarity 一律经白名单映射出 class，不把外部字符串拼进 class（S4） */
+var RARITY_KEYS = ["R","SR","SSR","UR"];
+var RARITY_CLASS = { R:"r-R", SR:"r-SR", SSR:"r-SSR", UR:"r-UR" };
+/* 非白名单的 rarity 一律降级成 R：既不进 class，也不原样显示（S4） */
+function rarityOf(r){ return RARITY_CLASS[r] ? r : "R"; }
+function rarityClass(r){ return RARITY_CLASS[r] || "r-R"; }
+function rarityColor(r){ return "c-" + rarityOf(r); }
+
+var storageOK = true;
+function save(){
+  S.updatedAt = Date.now();
+  try{ localStorage.setItem(KEY, JSON.stringify(S)); return true; }
+  catch(e){ storageOK = false; showStoreMode(); return false; }
+}
+function exportObj(version){
+  var now = Date.now();
+  return {
+    _comment: "今天吃什么 · 数据文件。改完用页面上的「导入 data.json」读回来即可",
+    /* 文件版本：导出时自动比旧值大一号；自动载入靠它做「不相等即加载」判断 */
+    version: (typeof version === "number" && isFinite(version)) ? version
+           : ((typeof S.dataVersion === "number") ? S.dataVersion : 1),
+    updatedAt: now,
+    exportedAt: new Date(now).toISOString(),
+    options: S.options.slice(),
+    weekType: S.weekType,
+    animPref: S.animPref,
+    animLog: S.animLog,
+    drawSeq: S.drawSeq || 0,
+    weekStart: S.weekStart,
+    results: S.results.map(function(r){ return { name:r.name, rarity:r.rarity, date:r.date }; }),
+    pool: S.pool.slice(),
+    history: S.history
+  };
+}
+/* ---- 导入校验（S2）：不合法的条目整条丢弃，不让一条脏记录搞崩整页 ---- */
+function isValidYmd(s){
+  if(typeof s !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;
+  var d = parseYmd(s);
+  return !isNaN(d.getTime()) && ymd(d) === s;
+}
+function isValidItem(it){
+  return !!it && typeof it === "object" && !Array.isArray(it) &&
+         typeof it.name === "string" && it.name.length > 0 &&
+         typeof it.rarity === "string" && RARITY_KEYS.indexOf(it.rarity) >= 0 &&
+         isValidYmd(it.date);
+}
+function importObj(j){
+  if(!j || !Array.isArray(j.options) || !j.options.length) throw new Error("缺少 options");
+  var seen = {}, options = [];
+  j.options.forEach(function(n){
+    if(typeof n !== "string" || !n.length) return;
+    if(seen[n]) return;
+    seen[n] = 1; options.push(n);
+  });
+  if(!options.length) throw new Error("缺少有效的 options（店名必须是非空字符串）");
+  S.options = options;
+  if(j.weekType === "big" || j.weekType === "small") S.weekType = j.weekType;
+  if(j.animPref === "random" || j.animPref === "gacha" || j.animPref === "csgo") S.animPref = j.animPref;
+  S.animLog = (j.animLog && typeof j.animLog === "object") ? j.animLog : {};
+  S.drawSeq = (typeof j.drawSeq === "number") ? j.drawSeq : 0;
+  var dropped = 0;
+  var inOpt = function(n){ return S.options.indexOf(n) >= 0; };
+
+  /* history：整条不合法就丢弃；条内坏 item 也单独丢弃 */
+  var hist = [];
+  (Array.isArray(j.history) ? j.history : []).forEach(function(h){
+    if(!h || typeof h !== "object" || Array.isArray(h)){ dropped++; return; }
+    if(!isValidYmd(h.weekStart) || !Array.isArray(h.items)){ dropped++; return; }
+    var items = [];
+    h.items.forEach(function(it){
+      if(!isValidItem(it)){ dropped++; return; }
+      items.push({ name:it.name, rarity:it.rarity, date:it.date });
+    });
+    hist.push({ weekStart:h.weekStart, weekType:(h.weekType==="small"?"small":"big"), days:items.length, items:items });
+  });
+  S.history = hist;
+
+  /* results：同样校验；店名不在 options 里的「幽灵店」一并丢弃（M1） */
+  var res = [];
+  (Array.isArray(j.results) ? j.results : []).forEach(function(r){
+    if(!isValidItem(r)){ dropped++; return; }
+    if(!inOpt(r.name)){ dropped++; return; }
+    res.push({ name:r.name, rarity:r.rarity, date:r.date });
+  });
+  S.results = res;
+
+  /* pool：只保留仍在 options 里的店名（M1） */
+  var pool = [];
+  (Array.isArray(j.pool) ? j.pool : []).forEach(function(n){
+    if(typeof n !== "string" || !inOpt(n)){ dropped++; return; }
+    pool.push(n);
+  });
+  S.pool = pool;
+
+  S.weekStart = isValidYmd(j.weekStart) ? j.weekStart : "";
+  /* 文件版本与本地时间戳彻底分离：只有 importObj 写 dataVersion（S1） */
+  var hadVersion = (typeof j.version === "number" && isFinite(j.version));
+  if(hadVersion) S.dataVersion = j.version;
+  save();
+  return { dropped: dropped, hadVersion: hadVersion };
+}
+function dayCount(){ return S.weekType==="small" ? 6 : 5; }
+/* 已落地（已揭晓）的抽签条数 */
+function doneCount(){
+  var c = 0;
+  for(var i=0;i<S.results.length;i++){ if(S.results[i] && !S.results[i].pending) c++; }
+  return c;
+}
+
+/* ============ 日期 / 跨周 ============ */
+function ymd(d){
+  var m = d.getMonth()+1, dd = d.getDate();
+  return d.getFullYear()+"-"+(m<10?"0":"")+m+"-"+(dd<10?"0":"")+dd;
+}
+function parseYmd(s){ var p = String(s).split("-"); return new Date(+p[0], (+p[1])-1, +p[2]); }
+function mondayOf(d){
+  var x = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  var w = (x.getDay()+6)%7;
+  x.setDate(x.getDate()-w);
+  return x;
+}
+function thisMonday(){ return ymd(mondayOf(new Date())); }
+function todayStr(){ return ymd(new Date()); }
+function dayDiff(a, b){ return Math.round((parseYmd(b) - parseYmd(a)) / 86400000); }
+function dayIndexDate(i){ var d = mondayOf(new Date()); d.setDate(d.getDate()+i); return ymd(d); }
+
+/* 跨周归档：过了周一，上周菜单进历史，本周重开 */
+function rollover(){
+  var now = thisMonday();
+  if(S.weekStart && S.weekStart !== now){
+    if(S.results.length) archive();
+    S.results = []; S.pool = [];
+  }
+  S.weekStart = now;
+  save();
+}
+/* 抽签前做一次轻量周次比较：页面跨过周一不刷新也能正确开新周（O3） */
+function ensureWeek(){
+  if(S.weekStart && S.weekStart !== thisMonday()) rollover();
+}
+/* 本周菜单写进历史（同一周只保留一条，重抽会覆盖） */
+function archive(){
+  var items = [];
+  S.results.forEach(function(r, i){
+    if(!r || r.pending) return;                 /* 还没揭晓的不进历史 */
+    items.push({ name:r.name, rarity:r.rarity, date:r.date || dayIndexDate(i) });
+  });
+  if(!items.length) return;
+  var rec = {
+    weekStart: S.weekStart || thisMonday(),
+    weekType: S.weekType,
+    days: items.length,
+    items: items
+  };
+  var idx = -1;
+  for(var i=0;i<S.history.length;i++){ if(S.history[i] && S.history[i].weekStart === rec.weekStart){ idx = i; break; } }
+  if(idx >= 0) S.history[idx] = rec; else S.history.unshift(rec);
+  S.history.sort(function(a,b){ return a.weekStart < b.weekStart ? 1 : -1; });
+  if(S.history.length > 60) S.history = S.history.slice(0, 60);
+  save();
+}
+/* 某家店距今多少天没吃（null = 从没吃过；只统计「已经过去」的日子） */
+function lastEaten(name){
+  var today = todayStr(), all = [];
+  function keep(d){ if(d && dayDiff(d, today) >= 0) all.push(d); }
+  /* 防御：结构不对的记录跳过而不是抛错（S2） */
+  S.history.forEach(function(h){
+    if(!h || !Array.isArray(h.items)) return;
+    h.items.forEach(function(it){
+      if(it && it.name === name && isValidYmd(it.date)) keep(it.date);
+    });
+  });
+  S.results.forEach(function(r, i){
+    if(!r || r.name !== name) return;
+    keep(isValidYmd(r.date) ? r.date : dayIndexDate(i));
+  });
+  if(!all.length) return null;
+  all.sort();
+  return dayDiff(all[all.length-1], today);
+}
+function emojiOf(name){
+  if(typeof name === "string" && EMOJI_MAP[name]) return EMOJI_MAP[name];
+  var i = (typeof name === "string") ? S.options.indexOf(name) : -1;
+  if(i < 0) i = (typeof name === "string") ? name.length : 0;
+  if(!Number.isFinite(i)) i = 0;
+  return EMOJI[i % EMOJI.length];
+}
+/* 第 i 天是否「加餐日」= 该店名在当天之前的结果里出现过（菜单/揭示卡/复制文本共用，M3） */
+function isDupDay(i){
+  var r = S.results[i]; if(!r) return false;
+  for(var k=0;k<i;k++){ if(S.results[k] && S.results[k].name === r.name) return true; }
+  return false;
+}
+/* 第 i 空位预告：剩余唯一店数 < 剩余天数 → 一定会重复（M2） */
+function willDupAt(i){
+  var n = dayCount(), names = {}, cnt = 0;
+  function add(nm){ if(typeof nm === "string" && nm && !names[nm]){ names[nm] = 1; cnt++; } }
+  for(var k=0;k<i && k<S.results.length;k++){ if(S.results[k]) add(S.results[k].name); }
+  S.pool.forEach(add);
+  return cnt < (n - i);
+}
+
+/* ============ 工具 ============ */
+var $ = function(id){ return document.getElementById(id); };
+var sleep = function(ms){ return new Promise(function(r){ setTimeout(r, ms); }); };
+function shuffle(a){ for(var i=a.length-1;i>0;i--){ var j=Math.floor(Math.random()*(i+1)); var t=a[i];a[i]=a[j];a[j]=t; } return a; }
+
+/* 能力检测：不支持 Element.animate / getAnimations 时降级，绝不抛错阻断抽签（S3） */
+var CAN_ANIMATE = (typeof Element !== "undefined") && typeof Element.prototype.animate === "function";
+var CAN_GETANIM = (typeof Element !== "undefined") && typeof Element.prototype.getAnimations === "function";
+/* 用户偏好「减少动效」时跳过装饰性动画，但不影响抽签逻辑和结果（L7） */
+var REDUCE = false;
+try{ REDUCE = !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches); }catch(e){}
+/* localStorage 可用性探测（L6）：不可用时要明确告诉用户「存不上」 */
+(function(){
+  try{
+    var k = "__lunch_probe__";
+    localStorage.setItem(k, "1");
+    var v = localStorage.getItem(k);
+    localStorage.removeItem(k);
+    if(v !== "1") storageOK = false;
+  }catch(e){ storageOK = false; }
+})();
+/* 页面内提示条（S3）：出错也走这里，不要只 alert */
+function toast(msg, kind){
+  var el = $("toast"); if(!el) return;
+  el.textContent = msg;
+  el.className = "toast" + (kind ? " " + kind : "") + " on";
+  if(toast._t) clearTimeout(toast._t);
+  toast._t = setTimeout(function(){ el.className = "toast" + (kind ? " " + kind : ""); }, 6000);
+}
+
+/* ============ 音效（合成，无外部文件） ============ */
+var ac = null;
+function AC(){
+  if(!ac){
+    var C = window.AudioContext || window.webkitAudioContext;
+    if(!C) return null;
+    try{ ac = new C(); }catch(e){ return null; }
+  }
+  try{ if(ac.state === "suspended") ac.resume(); }catch(e){}
+  return ac;
+}
+function tone(freq, at, dur, type, vol){
+  var c = AC(); if(!c) return;
+  var t0 = c.currentTime + (at||0);
+  var o = c.createOscillator(), g = c.createGain();
+  o.type = type || "sine"; o.frequency.setValueAtTime(freq, t0);
+  g.gain.setValueAtTime(0, t0);
+  g.gain.linearRampToValueAtTime(vol==null?0.16:vol, t0+0.02);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  o.connect(g); g.connect(c.destination);
+  o.start(t0); o.stop(t0 + dur + 0.05);
+}
+function noise(at, dur, vol){
+  var c = AC(); if(!c) return;
+  var t0 = c.currentTime + (at||0);
+  var len = Math.floor(c.sampleRate * dur);
+  var buf = c.createBuffer(1, len, c.sampleRate);
+  var d = buf.getChannelData(0);
+  for(var i=0;i<len;i++) d[i] = (Math.random()*2-1) * (1 - i/len);
+  var src = c.createBufferSource(); src.buffer = buf;
+  var g = c.createGain(); g.gain.value = vol==null?0.18:vol;
+  var f = c.createBiquadFilter(); f.type = "lowpass";
+  f.frequency.setValueAtTime(2400, t0);
+  f.frequency.exponentialRampToValueAtTime(220, t0+dur);
+  src.connect(f); f.connect(g); g.connect(c.destination);
+  src.start(t0);
+}
+function sfxTick(){ tone(880, 0, .04, "square", .05); }
+function sfxSummon(){ noise(0, .9, .16); tone(110, 0, .8, "sawtooth", .1); tone(220, .1, .7, "sine", .08); }
+function sfxReveal(rar){
+  if(rar==="UR"){ [523,659,784,1046,1318,1568].forEach(function(f,i){ tone(f, i*.07, .7, "triangle", .14); }); noise(0,1.2,.12); }
+  else if(rar==="SSR"){ [523,659,784,1046].forEach(function(f,i){ tone(f, i*.08, .6, "triangle", .13); }); noise(0,.7,.1); }
+  else if(rar==="SR"){ [440,554,659].forEach(function(f,i){ tone(f, i*.07, .45, "sine", .12); }); }
+  else { tone(392,0,.35,"sine",.12); tone(523,.08,.35,"sine",.1); }
+}
+
+/* ============ 粒子（Canvas 彩带 + 星光） ============ */
+var cvs = $("fx"), ctx = cvs.getContext("2d"), parts = [], dpr = 1;
+function fit(){
+  dpr = Math.min(window.devicePixelRatio || 1, 2);
+  cvs.width = innerWidth * dpr; cvs.height = innerHeight * dpr;
+  cvs.style.width = innerWidth+"px"; cvs.style.height = innerHeight+"px";
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+}
+fit(); addEventListener("resize", fit);
+
+function burst(x, y, n, colors, power){
+  /* 粒子数封顶，避免低端机掉帧（L4） */
+  n = Math.min(n, 400 - parts.length);
+  if(n <= 0) return;
+  for(var i=0;i<n;i++){
+    var a = Math.random()*Math.PI*2, sp = (2 + Math.random()*9) * (power||1);
+    parts.push({
+      x:x, y:y,
+      vx:Math.cos(a)*sp, vy:Math.sin(a)*sp - 3,
+      g:0.16 + Math.random()*0.12,
+      life:1, decay:0.006 + Math.random()*0.012,
+      c:colors[Math.floor(Math.random()*colors.length)],
+      w:4 + Math.random()*7, h:7 + Math.random()*12,
+      rot:Math.random()*Math.PI, vr:(Math.random()-0.5)*0.35,
+      type:Math.random() < 0.35 ? "star" : "ribbon"
+    });
+  }
+  scheduleParts();
+}
+/* 空闲时不再每帧 clearRect 整屏 canvas：没有粒子就不排下一帧（L4） */
+var rafPending = false;
+function scheduleParts(){
+  if(rafPending) return;
+  rafPending = true;
+  requestAnimationFrame(tickParts);
+}
+function tickParts(){
+  rafPending = false;
+  ctx.clearRect(0,0,innerWidth,innerHeight);
+  for(var i=parts.length-1;i>=0;i--){
+    var p = parts[i];
+    p.vy += p.g; p.x += p.vx; p.y += p.vy;
+    p.vx *= 0.992; p.rot += p.vr; p.life -= p.decay;
+    if(p.life <= 0 || p.y > innerHeight + 60){ parts.splice(i,1); continue; }
+    ctx.save();
+    ctx.globalAlpha = Math.max(0, p.life);
+    ctx.translate(p.x, p.y); ctx.rotate(p.rot);
+    ctx.fillStyle = p.c;
+    if(p.type === "star"){
+      ctx.shadowColor = p.c; ctx.shadowBlur = 12;
+      ctx.beginPath(); ctx.arc(0,0,p.w*0.55,0,Math.PI*2); ctx.fill();
+    }else{
+      ctx.fillRect(-p.w/2, -p.h/2, p.w, p.h);
+    }
+    ctx.restore();
+  }
+  if(parts.length) scheduleParts();
+}
+
+/* ============ 配置渲染 ============ */
+function renderChips(){
+  var box = $("chips"); box.innerHTML = "";
+  S.options.forEach(function(name, i){
+    var el = document.createElement("span");
+    el.className = "chip";
+    el.innerHTML = "<span>"+emojiOf(name)+"</span><span>"+esc(name)+"</span>" +
+      "<button type='button' class='x' data-i='"+i+"' aria-label='删除 "+esc(name)+"'>✕</button>";
+    box.appendChild(el);
+  });
+  box.querySelectorAll(".x").forEach(function(x){
+    x.disabled = busy;                        /* 抽签期间配置区禁用（M4） */
+    x.onclick = function(){
+      var i = parseInt(x.getAttribute("data-i"), 10);
+      if(S.options.length <= 2){ toast("至少留 2 家店，不然没得抽啦", "err"); return; }
+      S.options.splice(i,1);
+      S.pool = S.pool.filter(function(n){ return S.options.indexOf(n) >= 0; });
+      save(); renderChips(); renderDays();
+    };
+  });
+}
+/* 单引号也要转义：rarity 之类会进 HTML 属性（S4） */
+function esc(s){ return String(s).replace(/[&<>"']/g, function(c){ return ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[c]; }); }
+
+function addOpt(){
+  var v = $("newOpt").value.trim();
+  if(!v) return;
+  if(S.options.indexOf(v) >= 0){ alert("已经有了：" + v); return; }
+  S.options.push(v); $("newOpt").value = "";
+  save(); renderChips(); renderDays();
+}
+$("addOpt").onclick = addOpt;
+$("newOpt").addEventListener("keydown", function(e){ if(e.key === "Enter") addOpt(); });
+
+$("togCfg").onclick = function(){
+  var b = $("cfgBody"), on = b.classList.toggle("collapsed");
+  this.textContent = on ? "展开" : "收起";
+};
+
+/* 精确选择器：不要用泛化的 .seg button（L3） */
+document.querySelectorAll(".seg button[data-week]").forEach(function(b){
+  b.onclick = function(){
+    if(busy) return;
+    S.weekType = b.getAttribute("data-week");
+    var n = dayCount();
+    if(S.results.length > n) S.results = S.results.slice(0, n);
+    save(); renderSeg(); renderDays();
+  };
+});
+function renderSeg(){
+  document.querySelectorAll(".seg button[data-week]").forEach(function(b){
+    b.classList.toggle("on", b.getAttribute("data-week") === S.weekType);
+  });
+}
+
+document.querySelectorAll(".seg button[data-anim]").forEach(function(b){
+  b.onclick = function(){
+    if(busy) return;
+    S.animPref = b.getAttribute("data-anim");
+    save(); renderAnimSeg();
+  };
+});
+
+/* ============ data.json 导出 / 导入 ============ */
+var BACKUP_KEY = "lunch_gacha_v1_backup";
+var storeExtra = "";
+function showStoreMode(extra){
+  if(extra !== undefined && extra !== null) storeExtra = extra;
+  var el = $("storeMode");
+  if(!el) return;
+  var isFile = location.protocol === "file:";
+  var base = isFile
+    ? "当前存储：<code>浏览器 localStorage</code>（双击打开模式，自动保存，换浏览器/清缓存会丢）"
+    : "当前存储：<code>浏览器 localStorage</code>，且已尝试读取同目录 <code>data.json</code>（服务器模式）";
+  var warn = storageOK ? "" :
+    "<br><span style='color:var(--pink)'>⚠️ 当前浏览器无法保存（隐私模式或空间已满），本次抽签结果刷新后会丢失。</span>";
+  el.innerHTML = base + warn + (storeExtra ? "<br>" + storeExtra : "") +
+    "<br>想用文件维护：点「导出 data.json」→ 用记事本改店名/历史 →「导入 data.json」读回来。";
+}
+/* 备份当前状态，导入出错/后悔时可回滚（M7） */
+function backupState(){
+  try{ localStorage.setItem(BACKUP_KEY, JSON.stringify(S)); return true; }catch(e){ return false; }
+}
+function hasBackup(){
+  try{ return !!localStorage.getItem(BACKUP_KEY); }catch(e){ return false; }
+}
+function updateRestoreBtn(){
+  var b = $("restoreBtn");
+  if(b) b.disabled = busy || !hasBackup();
+}
+function restoreBackup(){
+  if(busy) return;
+  var raw = null;
+  try{ raw = localStorage.getItem(BACKUP_KEY); }catch(e){}
+  if(!raw){ toast("没有可恢复的备份", "err"); return; }
+  if(!confirm("用备份覆盖当前状态？当前未备份的改动会丢失。")) return;
+  try{
+    var j = JSON.parse(raw);
+    S = Object.assign({}, def, j);
+    if(!Array.isArray(S.options) || !S.options.length) S.options = def.options.slice();
+    if(S.weekType!=="big" && S.weekType!=="small") S.weekType = "big";
+    if(!Array.isArray(S.results)) S.results = [];
+    if(!Array.isArray(S.pool)) S.pool = [];
+    if(!Array.isArray(S.history)) S.history = [];
+    if(!S.animLog || typeof S.animLog !== "object") S.animLog = {};
+    if(S.animPref !== "random" && S.animPref !== "gacha" && S.animPref !== "csgo") S.animPref = "random";
+    if(typeof S.dataVersion !== "number" || !isFinite(S.dataVersion)) S.dataVersion = null;
+    save();
+    renderChips(); renderSeg(); renderDays(); updateRestoreBtn();
+    toast("已恢复到备份状态", "ok");
+  }catch(e){ toast("恢复失败：" + (e && e.message ? e.message : e), "err"); }
+}
+$("expJson").onclick = function(){
+  /* 导出时把文件版本往上抬一号，并记到本地：这样导出的文件放回目录也不会反过来覆盖本地抽签（S1） */
+  var ver = (typeof S.dataVersion === "number" && isFinite(S.dataVersion)) ? S.dataVersion + 1 : 1;
+  S.dataVersion = ver;
+  save();
+  var blob = new Blob([JSON.stringify(exportObj(ver), null, 2)], { type:"application/json" });
+  var a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "lunch-gacha-data-" + todayStr() + ".json";     /* 文件名带日期（O5） */
+  document.body.appendChild(a); a.click();
+  setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 500);
+  toast("已导出 lunch-gacha-data-" + todayStr() + ".json（版本 " + ver + "）；导出物需要手动拷回项目目录才会被自动加载。", "ok");
+};
+$("impBtn").onclick = function(){ if(!busy) $("impJson").click(); };
+$("impJson").onchange = function(e){
+  var f = e.target.files && e.target.files[0];
+  if(!f) return;
+  var fr = new FileReader();
+  fr.onload = function(){
+    var j = null;
+    try{ j = JSON.parse(fr.result); }
+    catch(err){ toast("导入失败：文件不是合法的 JSON", "err"); $("impJson").value = ""; return; }
+    if(!confirm("将用文件内容覆盖当前状态（当前 " + S.options.length + " 家店 / " + S.history.length + " 周历史），确定继续？")){
+      $("impJson").value = ""; return;
+    }
+    var rep = null;
+    try{
+      backupState();
+      rep = importObj(j);
+      rollover(); renderChips(); renderSeg(); renderDays(); updateRestoreBtn();
+      var msg = "导入成功：共 " + S.options.length + " 家店，" + S.history.length + " 周历史";
+      if(rep.dropped > 0) msg += "；丢弃了 " + rep.dropped + " 条无效记录";
+      if(!rep.hadVersion) msg += "；该文件没有 version 字段（不参与自动载入比对）";
+      msg += "。原状态已备份，可用「恢复备份」撤销。";
+      toast(msg, "ok");
+    }catch(err){
+      toast("导入失败：" + (err && err.message ? err.message : err), "err");
+    }
+    $("impJson").value = "";
+  };
+  fr.onerror = function(){ toast("读取文件失败", "err"); $("impJson").value = ""; };
+  fr.readAsText(f, "utf-8");
+};
+$("restoreBtn").onclick = restoreBackup;
+
+/* ============ 排期渲染（纯读，不带写副作用，M6） ============ */
+function renderDays(){
+  var n = dayCount(), box = $("days"); box.innerHTML = "";
+  var lim = Math.min(n, S.results.length);
+  for(var i=0;i<n;i++){
+    var r = (i < lim) ? S.results[i] : null;
+    var shown = !!(r && !r.pending);          /* 动画没结束前保持「未揭晓」的样子（M5） */
+    var el = document.createElement("div");
+    el.className = "day " + (shown ? ("done " + rarityClass(r.rarity)) : "tbd");
+    var willDup = willDupAt(i);               /* 基于剩余可选项的真实计算（M2） */
+    var isDup = shown ? isDupDay(i) : false;  /* 与揭示卡/复制文本同口径（M3） */
+    var html = "<div class='dname'>"+DAY_LABEL[i]+"</div>";
+    if(shown){
+      var rr = rarityOf(r.rarity);
+      html += "<div class='dish "+rarityColor(rr)+"'>"+emojiOf(r.name)+" "+esc(r.name)+"</div>";
+      html += "<div class='rar "+rarityColor(rr)+"'>"+esc(rr)+"</div>";
+      if(isDup) html += "<div class='tag'>加餐日</div>";
+    }else{
+      html += "<div class='dish'>?</div>";
+      html += "<div class='rar' style='opacity:.35'>"+(willDup ? "待抽 · 会重复" : "待抽")+"</div>";
+    }
+    el.innerHTML = html;
+    box.appendChild(el);
+  }
+  /* 超出当前周型天数的记录要看得见（M4） */
+  if(S.results.length > n){
+    var warn = document.createElement("div");
+    warn.style.cssText = "grid-column:1/-1;color:var(--gold);font-size:12px;text-align:center;line-height:1.6";
+    warn.textContent = "本周已记录 " + S.results.length + " 条，超过当前周型的 " + n + " 天，多余的记录不计入菜单。";
+    box.appendChild(warn);
+  }
+  var done = doneCount();
+  var full = done >= n;
+  $("copybar").style.display = full ? "block" : "none";
+  if(full){
+    var txt = "本周菜单（"+(S.weekType==="small"?"小周6天":"大周5天")+"）\n";
+    for(var i=0;i<n;i++){
+      var r = S.results[i]; if(!r || r.pending) continue;
+      txt += DAY_LABEL[i]+"："+r.name+"  ["+rarityOf(r.rarity)+"]"+(isDupDay(i)?"（加餐日）":"")+"\n";
+    }
+    $("copyTxt").value = txt;
+  }
+  $("drawOne").disabled = full || busy;
+  $("drawAll").disabled = full || busy;
+  $("drawOne").textContent = full ? "✅ 本周已排满" : "🎰 抽下一天（第 "+(done+1)+" 天）";
+  $("stageHint").textContent = full ? "本周菜单已确定，开吃吧！" : "点击「抽下一天」开始召唤";
+  renderStats(); renderHistory(); renderAnimSeg();
+}
+
+/* ============ 统计 / 历史 ============ */
+function allRecords(){
+  /* 防御：结构不对的历史记录跳过而不是抛错（S2） */
+  var recs = S.history.filter(function(h){
+    return h && typeof h === "object" && Array.isArray(h.items) &&
+           isValidYmd(h.weekStart) && h.weekStart !== S.weekStart;
+  });
+  var items = [];
+  S.results.forEach(function(r, i){
+    if(!r || r.pending) return;
+    items.push({ name:r.name, rarity:r.rarity, date:r.date || dayIndexDate(i) });
+  });
+  if(items.length){
+    recs = [{
+      weekStart: S.weekStart || thisMonday(),
+      weekType: S.weekType,
+      days: items.length,
+      items: items
+    }].concat(recs);
+  }
+  return recs;
+}
+
+function renderStats(){
+  var recs = allRecords();
+  var cnt = {}, total = 0;
+  recs.forEach(function(h){ h.items.forEach(function(it){ cnt[it.name] = (cnt[it.name]||0)+1; total++; }); });
+  var max = 1;
+  S.options.forEach(function(n){ if((cnt[n]||0) > max) max = cnt[n]; });
+
+  var staleName = "-", staleVal = -1;
+  S.options.forEach(function(n){
+    var d = lastEaten(n), v = (d == null) ? 9999 : d;
+    if(v > staleVal){ staleVal = v; staleName = n; }
+  });
+  var staleTxt = (staleVal >= 9999) ? "从未吃过" : (staleVal + " 天");
+
+  $("kpis").innerHTML =
+    '<div class="kpi"><div class="v cy">'+total+'</div><div class="l">累计餐数</div></div>' +
+    '<div class="kpi"><div class="v">'+recs.length+'</div><div class="l">记录周数</div></div>' +
+    '<div class="kpi"><div class="v pk">'+esc(staleName)+'</div><div class="l">最久没吃 '+staleTxt+'</div></div>';
+
+  var html = "";
+  S.options.forEach(function(n){
+    var c = cnt[n] || 0;
+    var d = lastEaten(n);
+    var stale = (d == null) || d >= 7;
+    html += '<div class="bar'+(stale?" stale":"")+'">' +
+      '<div class="bn">'+emojiOf(n)+' '+esc(n)+'</div>' +
+      '<div class="bt"><div class="bf" style="width:'+Math.round(c/max*100)+'%"></div></div>' +
+      '<div class="bv">'+c+' 次'+(d==null?' / 新':(d>=1?' / '+d+'天前':''))+'</div>' +
+      '</div>';
+  });
+  $("bars").innerHTML = html;
+}
+
+function renderHistory(){
+  var recs = allRecords();
+  var box = $("hisList");
+  if(!recs.length){ box.innerHTML = '<div class="empty">还没有记录，抽一次就有了 🍜</div>'; return; }
+  var html = "";
+  recs.slice(0, 20).forEach(function(h){
+    var a = parseYmd(h.weekStart);
+    var b = new Date(a); b.setDate(b.getDate() + (h.days - 1));
+    var span = (a.getMonth()+1)+"/"+a.getDate() + "–" + (b.getMonth()+1)+"/"+b.getDate();
+    var names = h.items.map(function(it){ return it.name; }).join(" · ");
+    var now = (h.weekStart === S.weekStart) ? "本周" : relativeWeek(h.weekStart);
+    html += '<div class="hrow">' +
+      '<span class="hw">'+span+'</span>' +
+      '<span class="ht">'+(h.weekType==="small"?"小周":"大周")+'</span>' +
+      '<span class="hl">'+esc(names)+'</span>' +
+      '<span class="hp">'+now+'</span>' +
+      '</div>';
+  });
+  if(recs.length > 20) html += '<div class="empty">… 仅显示最近 20 周</div>';
+  box.innerHTML = html;
+}
+function relativeWeek(ws){
+  var diff = Math.round((parseYmd(thisMonday()) - parseYmd(ws)) / 604800000);
+  if(diff <= 0) return "本周";
+  if(diff === 1) return "上周";
+  return diff + " 周前";
+}
+
+$("expHis").onclick = function(){
+  var recs = allRecords();
+  if(!recs.length){ alert("还没有历史记录"); return; }
+  var t = "【饮食记忆 · 全部历史】\n";
+  recs.forEach(function(h){
+    var a = parseYmd(h.weekStart), b = new Date(a); b.setDate(b.getDate() + (h.days-1));
+    t += "\n" + ymd(a) + " ~ " + ymd(b) + "  " + (h.weekType==="small"?"小周":"大周") + "\n";
+    h.items.forEach(function(it, i){ t += "  " + DAY_LABEL[i] + "：" + it.name + " [" + it.rarity + "]\n"; });
+  });
+  var box = $("copyTxt");
+  box.value = t;
+  $("copybar").style.display = "block";
+  box.select();
+  try{ if(navigator.clipboard) navigator.clipboard.writeText(t); else document.execCommand("copy"); }catch(e){}
+  alert("已生成到下方文本框并尝试复制，可手动全选复制");
+};
+/* 手动触发归档（M6：归档只发生在真正的状态变更点） */
+$("arcBtn").onclick = function(){
+  if(busy) return;
+  if(!S.results.length){ toast("本周还没有抽签结果，没什么可归档", "err"); return; }
+  archive();
+  renderDays();
+  toast("本周菜单已写入历史", "ok");
+};
+$("clrHis").onclick = function(){
+  if(busy) return;
+  if(!confirm("清空全部历史与统计？本周菜单不受影响。")) return;
+  S.history = []; save(); renderStats(); renderHistory();
+};
+$("togHis").onclick = function(){
+  var b = $("hisBody"), on = b.classList.toggle("collapsed");
+  this.textContent = on ? "展开" : "收起";
+};
+
+$("copyBtn").onclick = function(){
+  var t = $("copyTxt"); t.select();
+  try{
+    if(navigator.clipboard) navigator.clipboard.writeText(t.value);
+    else document.execCommand("copy");
+    this.textContent = "✅ 已复制";
+  }catch(e){ this.textContent = "请手动复制"; }
+  var self = this; setTimeout(function(){ self.textContent = "📋 复制本周菜单"; }, 1600);
+};
+
+/* ============ 抽签逻辑 ============ */
+function rollRarity(){
+  var total = RAR.reduce(function(s,r){ return s + r.w; }, 0);
+  var x = Math.random() * total;
+  for(var i=0;i<RAR.length;i++){ x -= RAR[i].w; if(x <= 0) return RAR[i].k; }
+  return "R";
+}
+/* 加权随机：越久没吃，权重越高。权重 = 1 + 距上次天数（封顶 61），从没吃过按 61 计（O2） */
+function pickName(){
+  if(!S.pool.length) S.pool = shuffle(S.options.slice());
+  var ws = S.pool.map(function(n){
+    var d = lastEaten(n);
+    if(d == null) return 61;
+    return 1 + Math.max(0, Math.min(d, 60));
+  });
+  var total = ws.reduce(function(a,b){ return a+b; }, 0);
+  var x = Math.random() * total, k = 0;
+  for(k=0;k<ws.length;k++){ x -= ws[k]; if(x <= 0) break; }
+  if(k >= S.pool.length) k = S.pool.length - 1;
+  return S.pool.splice(k, 1)[0];
+}
+
+function setReel(name){
+  var i = Math.max(0, S.options.indexOf(name));
+  var prev = S.options[(i - 1 + S.options.length) % S.options.length];
+  var next = S.options[(i + 1) % S.options.length];
+  $("rPrev").textContent = prev; $("rCur").textContent = name; $("rNext").textContent = next;
+}
+
+/* 阶段1：召唤 */
+async function phaseSummon(){
+  $("ring").classList.add("on");
+  $("core").classList.add("on");
+  $("speedlines").classList.add("on");
+  document.body.classList.add("shake");
+  sfxSummon();
+  var stage = $("stage");
+  for(var i=0;i<14;i++){
+    var o = document.createElement("div");
+    o.style.cssText = "position:absolute;width:16px;height:16px;border-radius:50%;"+
+      "background:radial-gradient(circle,#fff,"+(i%2?"#00e5ff":"#ff2e88")+" 45%,transparent 70%);"+
+      "box-shadow:0 0 22px 8px rgba(255,255,255,.5);z-index:5;pointer-events:none;";
+    var ang = (Math.PI*2) * (i/14), dist = 220 + Math.random()*120;
+    o.style.left = "calc(50% + "+Math.cos(ang)*dist+"px)";
+    o.style.top  = "calc(50% + "+Math.sin(ang)*dist+"px)";
+    o.style.setProperty("--sx", (-Math.cos(ang)*dist)+"px");
+    o.style.setProperty("--sy", (-Math.sin(ang)*dist)+"px");
+    if(CAN_ANIMATE){
+      try{
+        o.animate(
+          [{transform:"translate(0,0) scale(1)", opacity:0},
+           {transform:"translate(-50%,-50%) scale(1.2)", opacity:1, offset:.25},
+           {transform:"translate(calc(-50% + var(--sx)),calc(-50% + var(--sy))) scale(.15)", opacity:0}],
+          {duration:900, delay:i*45, easing:"cubic-bezier(.6,.05,.3,1)"}
+        );
+      }catch(e){}
+    }
+    stage.appendChild(o);
+    setTimeout(function(node){ return function(){ node.remove(); }; }(o), 1000 + i*45);
+  }
+  await sleep(1250);
+  document.body.classList.remove("shake");
+  flash(0.9);
+  burst(innerWidth/2, innerHeight/2, 60, ["#ffffff","#00e5ff","#ff2e88","#ffd54f"], 1.4);
+  $("ring").classList.remove("on");
+  $("core").classList.remove("on");
+  await sleep(260);
+}
+
+function flash(op){
+  var f = $("flash");
+  f.style.opacity = "0";
+  if(!CAN_ANIMATE) return;
+  try{ f.animate([{opacity:op},{opacity:0}], {duration:520, easing:"ease-out"}); }catch(e){}
+}
+
+/* 阶段2：轮盘减速 */
+function spinReel(finalName){
+  return new Promise(function(resolve){
+    var reel = $("reel");
+    reel.classList.add("spinning");
+    $("speedlines").classList.remove("on");
+    var start = performance.now(), dur = 2500, last = 0, idx = 0;
+    function frame(now){
+      var t = Math.min(1, (now - start) / dur);
+      var e = 1 - Math.pow(1 - t, 3);
+      var interval = 32 + e * e * 620;
+      if(now - last > interval){
+        last = now; idx++;
+        setReel(S.options[idx % S.options.length]);
+        if(interval < 260) sfxTick();
+      }
+      if(t < 1) requestAnimationFrame(frame);
+      else{
+        setReel(finalName);
+        reel.classList.remove("spinning");
+        resolve();
+      }
+    }
+    requestAnimationFrame(frame);
+  });
+}
+
+/* ============ 动画选择器：越久没出场，概率越高 ============ */
+var ANIM_LIST = ["gacha", "csgo"];
+var ANIM_NAME = { gacha:"⭕ 魔法阵召唤", csgo:"📦 CSGO 开箱" };
+function animRec(k){ return (S.animLog && typeof S.animLog[k] === "object") ? S.animLog[k] : null; }
+function animLastDays(k){
+  var r = animRec(k);
+  if(!r || !r.date) return null;
+  try{ return dayDiff(r.date, todayStr()); }catch(e){ return null; }
+}
+/* 隔了多少次抽签没出场（未按次记录时退回按天） */
+function animGap(k){
+  var r = animRec(k);
+  var cur = S.drawSeq || 0;
+  if(r && typeof r.seq === "number") return Math.max(0, cur - r.seq);
+  var d = animLastDays(k);
+  if(d == null) return 99;
+  return Math.max(1, Math.round(d * dayCount() / 7));
+}
+function pickAnim(){
+  if(S.animPref !== "random") return S.animPref;
+  var ws = ANIM_LIST.map(function(k){
+    var g = animGap(k);
+    /* 从未出场按最大间隔 6 计；线性权重 2..7，让两种动画出现概率更均衡（O1） */
+    if(g >= 99) g = 6;
+    g = Math.max(1, Math.min(g, 6));
+    return 1 + g;
+  });
+  var total = ws.reduce(function(a,b){ return a+b; }, 0);
+  var x = Math.random() * total, i = 0;
+  for(i=0;i<ws.length;i++){ x -= ws[i]; if(x <= 0) break; }
+  if(i >= ANIM_LIST.length) i = ANIM_LIST.length - 1;
+  return ANIM_LIST[i];
+}
+function renderAnimSeg(){
+  document.querySelectorAll(".seg button[data-anim]").forEach(function(b){
+    b.classList.toggle("on", b.getAttribute("data-anim") === S.animPref);
+  });
+  var el = $("animStat");
+  if(el){
+    var gg = animGap("gacha"), cg = animGap("csgo");
+    var gd = animLastDays("gacha"), cd = animLastDays("csgo");
+    function lab(g, d){ return g >= 99 ? "从未出场" : (g + " 次前 / " + (d==null?"-":d+" 天前")); }
+    el.innerHTML = "出场间隔：魔法阵 <code>"+lab(gg, gd)+"</code> · CSGO 开箱 <code>"+lab(cg, cd)+"</code>" +
+      "<span style='opacity:.6'>（隔越久，下次被抽中的概率越高；权重 = 1 + 间隔次数，最大 7）</span>";
+  }
+}
+
+/* ============ 动画 B：CSGO 开箱 ============ */
+var CG_TIER = [
+  { n:"消费级", c1:"rgba(176,195,217,.40)", c2:"#b0c3d9" },
+  { n:"工业级", c1:"rgba(94,152,217,.44)",  c2:"#5e98d9" },
+  { n:"军规级", c1:"rgba(75,105,255,.50)",  c2:"#4b69ff" },
+  { n:"受限",   c1:"rgba(136,71,255,.55)",  c2:"#8847ff" },
+  { n:"保密",   c1:"rgba(211,44,230,.55)",  c2:"#d32ce6" },
+  { n:"隐秘",   c1:"rgba(235,75,75,.55)",   c2:"#eb4b4b" },
+  { n:"罕见",   c1:"rgba(255,215,0,.62)",   c2:"#ffd700" }
+];
+var RAR_TIER = { R:2, SR:3, SSR:5, UR:6 };
+function pickOther(name){
+  var o = S.options.filter(function(n){ return n !== name; });
+  return o.length ? o[Math.floor(Math.random()*o.length)] : name;
+}
+
+async function animCsgo(name, rar, dayIdx){
+  var box = $("csgo"), track = $("csgoTrack"), tip = $("csgoTip");
+  box.classList.add("on");
+  tip.textContent = "正在开箱…";
+
+  var CARD = 122, GAP = 9, STEP = CARD + GAP, N = 46;
+  var win = 30 + Math.floor(Math.random()*9);     /* 中奖卡在中后段 */
+  var tier = CG_TIER[RAR_TIER[rar] || 2];
+
+  var html = "";
+  for(var i=0;i<N;i++){
+    var t, nm;
+    if(i === win){ t = tier; nm = name; }
+    else if(i === win-1 || i === win+1){ t = (rar === "UR" ? CG_TIER[5] : CG_TIER[6]); nm = pickOther(name); } /* near-miss：差一格就中稀有 */
+    else { t = CG_TIER[Math.floor(Math.random()*3)]; nm = pickOther(name); }
+    html += "<div class='cg-card' style='--c1:"+t.c1+";--c2:"+t.c2+"'>" +
+            "<span class='cg-r'>"+t.n+"</span><span class='cg-n'>"+esc(nm)+"</span></div>";
+  }
+  if(CAN_GETANIM){ try{ track.getAnimations().forEach(function(a){ a.cancel(); }); }catch(e){} }
+  track.innerHTML = html;
+  track.style.transform = "translateY(-50%) translateX(0px)";
+
+  var viewW = box.clientWidth || 900;
+  var tx = viewW/2 - (win*STEP + CARD/2);
+  var DUR = 5000;
+
+  noise(0, .45, .13); tone(150, 0, .35, "sawtooth", .07);
+  await sleep(120);
+
+  if(CAN_ANIMATE){
+    try{
+      track.animate(
+        [{ transform:"translateY(-50%) translateX(0px)", filter:"blur(5px)" },
+         { transform:"translateY(-50%) translateX("+(tx*0.62)+"px)", filter:"blur(1.6px)", offset:.74 },
+         { transform:"translateY(-50%) translateX("+tx+"px)", filter:"blur(0px)" }],
+        { duration:DUR, easing:"cubic-bezier(.1,.62,.04,1)", fill:"forwards" }
+      );
+    }catch(e){}
+  }
+
+  /* 滚动咔哒声：越快越密，随减速变稀 */
+  var t0 = performance.now();
+  (function loop(){
+    var el = performance.now() - t0;
+    var p = Math.min(1, el/DUR);
+    if(el < DUR - 140){ sfxTick(); setTimeout(loop, 26 + p*p*520); }
+  })();
+
+  await sleep(DUR + 80);
+
+  /* 定格：中奖卡放大发光 + 白闪 + 粒子 */
+  var wc = track.children[win];
+  if(wc) wc.classList.add("win");
+  tip.textContent = "★ " + rar + " · " + name + " ★";
+  flash(0.8);
+  sfxReveal(rar);
+  var pal = rar === "UR" ? ["#ffd700","#ffffff","#ffb300"]
+          : rar === "SSR" ? ["#eb4b4b","#ffffff","#ff8a80"]
+          : rar === "SR" ? ["#8847ff","#e0d0ff"] : ["#4b69ff","#b3e5fc"];
+  if(wc){
+    var r = wc.getBoundingClientRect();
+    burst(r.left + r.width/2, r.top + r.height/2, rar === "UR" ? 150 : 80, pal, 1.2);
+  }
+  await sleep(1500);
+  /* 收尾：移除 win 类、取消 fill:forwards 动画、清掉 will-change，别让 GPU 常驻合成（M8） */
+  if(wc) wc.classList.remove("win");
+  if(CAN_GETANIM){ try{ track.getAnimations().forEach(function(a){ a.cancel(); }); }catch(e){} }
+  track.style.willChange = "";
+  box.classList.remove("on");
+  await sleep(220);
+}
+
+/* 阶段3：揭示卡 */
+async function reveal(name, rar, dayIdx, lastDays){
+  var cfg = RAR.filter(function(r){ return r.k === rar; })[0] || RAR[0];
+  var card = $("rcard");
+  card.className = "rcard " + rarityClass(rar);
+  card.style.animation = "none"; void card.offsetWidth; card.style.animation = "";
+  $("rbadge").className = "rbadge " + rarityColor(rar);
+  $("rbadge").textContent = rarityOf(rar);
+  $("rdish").textContent = emojiOf(name) + " " + name;
+  $("rdish").className = "rdish " + rarityColor(rar);
+  var gap = (lastDays == null) ? "· 首次打卡" : (lastDays <= 0 ? "· 今天刚吃过" : "· 距上次 " + lastDays + " 天");
+  /* 「加餐日」判定与菜单标签、复制文本完全一致（M3） */
+  $("rsub").textContent = DAY_LABEL[dayIdx] + " · 午餐" + (isDupDay(dayIdx) ? " · 加餐日" : "") + " " + gap;
+  $("rquote").textContent = (cfg.qs[Math.floor(Math.random()*cfg.qs.length)] || "").replace("rainbow","彩虹");
+  $("reveal").classList.add("on");
+  flash(0.75);
+  sfxReveal(rar);
+  var sh = $("shock");
+  sh.classList.remove("go"); void sh.offsetWidth; sh.classList.add("go");
+  var cx = innerWidth/2, cy = innerHeight/2;
+  var pal = rar === "UR" ? ["#ffffff","#ff2e88","#00e5ff","#ffd54f","#7c4dff"]
+          : rar === "SSR" ? ["#ffd54f","#ffffff","#ffb300"]
+          : rar === "SR" ? ["#b388ff","#e0d0ff","#7c4dff"]
+          : [RAR_COLOR.R, "#b3e5fc", "#ffffff"];
+  burst(cx, cy, rar==="UR"?220:rar==="SSR"?150:rar==="SR"?95:60, pal, rar==="UR"?1.6:1.2);
+  setTimeout(function(){ burst(cx, cy - 40, rar==="UR"?120:60, pal, 1.1); }, 320);
+  await sleep(REDUCE ? 700 : (rar === "UR" ? 2600 : rar === "SSR" ? 2200 : 1800));
+  $("reveal").classList.remove("on");
+  await sleep(160);
+}
+/* Esc 关闭揭示层：关闭即视为「已揭晓」，结果仍保留在菜单里（L7） */
+document.addEventListener("keydown", function(e){
+  if(e.key === "Escape" || e.key === "Esc"){
+    var rv = $("reveal");
+    if(rv && rv.classList.contains("on")) rv.classList.remove("on");
+  }
+});
+
+/* 主流程 */
+var busy = false;
+function setBusy(b){
+  busy = b;
+  ["drawOne","drawAll","resetWeek"].forEach(function(id){ $(id).disabled = b; });
+  setConfigDisabled(b);                  /* 抽签期间配置区一起禁用（M4） */
+  updateRestoreBtn();
+  if(!b) renderDays();
+}
+function setConfigDisabled(b){
+  ["addOpt","newOpt","expJson","impBtn","expHis","arcBtn","clrHis"].forEach(function(id){
+    var el = $(id); if(el) el.disabled = b;
+  });
+  document.querySelectorAll(".seg button[data-week]").forEach(function(el){ el.disabled = b; });
+  document.querySelectorAll(".seg button[data-anim]").forEach(function(el){ el.disabled = b; });
+  document.querySelectorAll("#chips .x").forEach(function(el){ el.disabled = b; });
+}
+
+async function drawDay(){
+  if(busy) return;
+  var dayIdx = 0, name = "", rar = "R", lastDays = null, pushed = false;
+  try{
+    ensureWeek();                                  /* 跨周轻量比较（O3） */
+    var n = dayCount();
+    if(S.results.length > n) S.results = S.results.slice(0, n);   /* 期间周型变了就按新天数截断（M4） */
+    /* 兜底：残留的 pending 记录就地落地，保证 dayIdx 与 results 下标对齐 */
+    for(var i=0;i<S.results.length;i++){ if(S.results[i] && S.results[i].pending) S.results[i].pending = false; }
+    dayIdx = doneCount();
+    if(dayIdx >= n) return;
+    setBusy(true);
+    AC();
+    name = pickName();
+    rar = rollRarity();
+    lastDays = lastEaten(name);                   /* 必须在写入 results 之前算（M5） */
+
+    /* 随机演出：越久没出场的动画越容易登场 */
+    S.drawSeq = (S.drawSeq || 0) + 1;
+    var anim = pickAnim();
+    S.animLog[anim] = { seq:S.drawSeq, date:todayStr() };
+
+    /* 先落盘再播动画：中途刷新最多是「菜单里已经多了这一抽」，不会凭空消失（M5） */
+    S.results.push({ name:name, rarity:rar, date:dayIndexDate(dayIdx), pending:true });
+    pushed = true;
+    save();
+    $("stageHint").textContent = "本次演出：" + ANIM_NAME[anim];
+    renderDays();                                 /* 播放期间仍显示「未揭晓」 */
+
+    if(!REDUCE){
+      if(anim === "csgo") await animCsgo(name, rar, dayIdx);
+      else { await phaseSummon(); await spinReel(name); }
+      await sleep(160);
+    }
+    /* 动画结束，结果落地显示 */
+    if(S.results[dayIdx]) S.results[dayIdx].pending = false;
+    save();
+    renderDays();
+    if(doneCount() >= dayCount()) archive();      /* 归档只在真正的状态变更点发生（M6） */
+    await reveal(name, rar, dayIdx, lastDays);
+    renderAnimSeg();
+  }catch(err){
+    /* 任何异常都不能让按钮永久卡死；给用户看得懂的提示（S3） */
+    if(pushed && S.results[dayIdx]) S.results[dayIdx].pending = false;
+    try{ save(); }catch(e){}
+    try{ renderDays(); }catch(e){}
+    toast("这次抽签出错了（已跳过动画），菜单仍可正常使用。", "err");
+    if(window.console && console.warn) console.warn("[lunch-gacha] draw failed:", err);
+  }finally{
+    try{ setBusy(false); }catch(e){}
+  }
+}
+
+$("drawOne").onclick = drawDay;
+$("drawAll").onclick = async function(){
+  if(busy) return;
+  while(doneCount() < dayCount()){
+    var before = doneCount();
+    try{ await drawDay(); }
+    catch(e){
+      /* 单次抽签的 rejection 不能带崩整个循环（S3） */
+      toast("批量抽签中断：" + ((e && e.message) ? e.message : "未知错误") + "，菜单仍可正常使用。", "err");
+      break;
+    }
+    if(doneCount() <= before) break;      /* 没有进展就别死循环 */
+  }
+};
+$("resetWeek").onclick = function(){
+  if(busy) return;
+  if(!confirm("清空本周菜单，重新抽？")) return;
+  S.results = []; S.pool = [];
+  S.history = S.history.filter(function(h){ return h && h.weekStart !== S.weekStart; });
+  save(); renderDays();
+  $("rCur").textContent = "准备召唤…";
+  $("rPrev").textContent = ""; $("rNext").textContent = "";
+};
+
+/* 初始化 */
+rollover();
+/* 上次抽签中途刷新留下的 pending 记录：落地显示，结果不丢（M5） */
+(function settlePending(){
+  var changed = false;
+  S.results.forEach(function(r){ if(r && r.pending){ r.pending = false; changed = true; } });
+  if(changed) save();
+})();
+renderChips(); renderSeg(); renderDays();
+setReel(S.options[0]);
+$("rCur").textContent = "准备召唤…";
+$("rPrev").textContent = ""; $("rNext").textContent = "";
+showStoreMode();
+updateRestoreBtn();
+
+/* 服务器模式（http/https）下自动读取同目录 data.json：
+   判定 = 文件版本 j.version 是数字 且 与本地 dataVersion 不相等（只比不相等，不比大小；S1） */
+if(location.protocol !== "file:"){
+  fetch("./data.json?t=" + Date.now(), { cache:"no-store" })
+    .then(function(r){ if(!r.ok) throw new Error("no file"); return r.json(); })
+    .then(function(j){
+      if(!j || typeof j.version !== "number" || !isFinite(j.version)) return;  /* 没有 version：静默跳过 */
+      if(j.version === S.dataVersion) return;                                /* 版本没变：不覆盖本地 */
+      if(S.dataVersion == null && doneCount() > 0){
+        showStoreMode("检测到 data.json（版本 "+j.version+"），但本地已有抽签记录，<b>未自动载入</b>；如需载入请点「导入 data.json」。");
+        return;
+      }
+      backupState();
+      var rep = importObj(j);
+      rollover(); renderChips(); renderSeg(); renderDays(); updateRestoreBtn();
+      var extra = "<b style='color:var(--gold)'>已自动载入 data.json（版本 "+j.version+"）</b>";
+      if(rep.dropped > 0) extra += "<br>丢弃了 " + rep.dropped + " 条无效记录";
+      extra += "<br>原状态已备份，可用「恢复备份」撤销。";
+      showStoreMode(extra);
+    })
+    .catch(function(){});   /* 没有 data.json 就静默用 localStorage */
+}
+})();
+</script>
+</body>
+</html>
